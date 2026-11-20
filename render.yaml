@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: windtide
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install --no-audit --no-fund --registry=https://registry.npmjs.org && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # 潮見帖などから iframe 埋め込みする場合のみ（許可オリジンをスペース区切り）
+      # - key: EMBED_FRAME_ANCESTORS
+      #   value: "'self' https://fishingportjapan.onrender.com"

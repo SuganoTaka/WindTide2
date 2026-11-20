@@ -1,0 +1,241 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: 236 239 230;
+  --paper-2: 246 247 241;
+  --ink: 14 42 51;
+  --ink-2: 60 90 98;
+  --ink-3: 106 131 138;
+  --rule: 200 212 205;
+  --teal: 20 96 107;
+  --teal-2: 46 139 146;
+  --shoal: 184 216 214;
+  --signal: 194 65 47;
+  --sand: 222 210 182;
+  --gold: 169 123 37;
+
+  --font-display: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP",
+    "Songti SC", serif;
+  --font-body: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Noto Sans JP",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --header-h: 56px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: rgb(var(--paper));
+  color: rgb(var(--ink));
+  font-family: var(--font-body);
+  font-feature-settings: "palt" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(var(--shoal));
+  color: rgb(var(--ink));
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--teal));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---------------------------------- texture --------------------------------- */
+.chart-paper {
+  background-color: rgb(var(--paper));
+  background-image:
+    linear-gradient(to bottom, rgba(20, 96, 107, 0.045) 1px, transparent 1px),
+    linear-gradient(to right, rgba(20, 96, 107, 0.028) 1px, transparent 1px);
+  background-size: 100% 22px, 22px 100%;
+}
+
+.hairline {
+  border-color: rgb(var(--rule));
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--ink-3));
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ---------------------------------- list ----------------------------------- */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--rule)) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: rgb(var(--rule));
+  border-radius: 99px;
+}
+
+/* --------------------------------- motion ---------------------------------- */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes draw-tide {
+  from {
+    stroke-dashoffset: 1400;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.anim-slide {
+  animation: slide-in-right 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.anim-rise {
+  animation: rise 0.28s ease both;
+}
+.tide-path {
+  stroke-dasharray: 1400;
+  animation: draw-tide 1.1s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------------------------------- print ---------------------------------- */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    background: #fff !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .h-dvh {
+    height: auto !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  main {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  article {
+    zoom: 0.78;
+    width: 128.2%;
+  }
+
+  .heat-cell {
+    height: 26px !important;
+  }
+
+  section[aria-labelledby="tide-heading"] svg {
+    max-height: 150px;
+  }
+
+  table {
+    font-size: 9.5px;
+  }
+
+  .overflow-x-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+
+  .min-h-full {
+    min-height: 0 !important;
+  }
+
+  .chart-paper {
+    background-image: none !important;
+  }
+
+  section,
+  table,
+  .print-keep {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+}

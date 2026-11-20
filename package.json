@@ -1,0 +1,37 @@
+{
+  "name": "windtide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "潮見帖フォーキャスト — 漁港の風予報とタイドグラフを週間・月間で出力する Web アプリ",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "data:ports": "python3 scripts/build_ports.py",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node scripts/e2e-smoke.cjs"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.12.1",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "undici": "^7.30.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
