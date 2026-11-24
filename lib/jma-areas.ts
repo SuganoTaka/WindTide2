@@ -102,6 +102,26 @@ export const SEA_AREAS: SeaArea[] = [
   { code: "6030", name: "沖縄南方海上", lat: 24.6, lon: 127.5 },
 ];
 
+/** 北海道の週間天気は「石狩・上川・釧路」の3区域に分かれる（010000.json） */
+export const HOKKAIDO_WEEK_AREAS = [
+  { code: "016000", name: "石狩・空知・後志地方", lat: 43.2, lon: 141.3 },
+  { code: "012000", name: "上川・留萌地方", lat: 43.8, lon: 142.5 },
+  { code: "014000", name: "釧路・根室・十勝地方", lat: 43.0, lon: 144.2 },
+];
+
+export function nearestHokkaidoWeekArea(lat: number, lon: number): (typeof HOKKAIDO_WEEK_AREAS)[number] {
+  let best = HOKKAIDO_WEEK_AREAS[0];
+  let bestKm = Number.POSITIVE_INFINITY;
+  for (const area of HOKKAIDO_WEEK_AREAS) {
+    const km = haversineKm({ lat, lon }, { lat: area.lat, lon: area.lon });
+    if (km < bestKm) {
+      bestKm = km;
+      best = area;
+    }
+  }
+  return best;
+}
+
 /** 海上予報区コード → 発表官署（地方海上予報 XML の官署コード） */
 const SEA_AREA_OFFICE: Record<string, string> = {
   "1010": "016000",

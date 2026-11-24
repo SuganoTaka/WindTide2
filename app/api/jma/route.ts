@@ -26,8 +26,8 @@ async function loadFeed(): Promise<FeedEntry[]> {
   return entries;
 }
 
-async function loadWeekly(office: string): Promise<JmaWeekly | null> {
-  const key = `jma:weekly:${office}`;
+async function loadWeekly(office: string, lat: number, lon: number): Promise<JmaWeekly | null> {
+  const key = `jma:weekly:${office}:${lat.toFixed(2)}:${lon.toFixed(2)}`;
   const cached = cacheGet<JmaWeekly | null>(key);
   if (cached !== null) return cached;
   try {
@@ -35,7 +35,7 @@ async function loadWeekly(office: string): Promise<JmaWeekly | null> {
       `https://www.jma.go.jp/bosai/forecast/data/forecast/${office}.json`,
       15000
     );
-    const weekly = parseWeekly(raw);
+    const weekly = parseWeekly(raw, { lat, lon });
     cacheSet(key, weekly, TTL.jmaForecast);
     return weekly;
   } catch {
@@ -96,7 +96,7 @@ export async function GET(req: Request) {
   }
 
   const [weekly, marine, warnings] = await Promise.all([
-    loadWeekly(office),
+    loadWeekly(office, lat, lon),
     feed.length ? loadMarine(feed, seaOffice, area.code) : Promise.resolve(null),
     feed.length ? loadWarnings(feed, seaOffice, area.code) : Promise.resolve([]),
   ]);

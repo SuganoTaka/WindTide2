@@ -1,0 +1,21 @@
+services:
+  web:
+    image: node:20
+    working_dir: /app
+    # .next が無ければその場でビルドしてから起動する（初回・クリーン時のみ数秒かかる）
+    command: ["sh", "-c", "[ -d .next ] || npm run build; exec npm start"]
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+      # 外向き通信にプロキシが必要な環境向け（未設定なら空になり、直接接続を試みる）
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-}
+    env_file:
+      - .env.preview
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+    restart: unless-stopped

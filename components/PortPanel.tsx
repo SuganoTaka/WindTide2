@@ -317,7 +317,7 @@ export default function PortPanel({
 
         {!loading && data && (
           <>
-            {view === "week" ? <WeekView data={data} /> : <MonthView data={data} />}
+            {view === "week" ? <WeekView data={data} tideFirst={embedded} /> : <MonthView data={data} />}
 
             <section aria-labelledby="facility-heading" className="print-hide border-t border-rule/70 pt-3">
               <div className="flex items-center gap-2">

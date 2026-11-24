@@ -134,7 +134,15 @@ function makeJma() {
         { label: "明日", windDir: "西", windSpeed: 20, weather: "晴", visibilityKm: 10, waveHeight: 5, sentence: "" },
       ],
     },
-    warnings: [{ name: "海上強風警報", code: "21", areaName: "関東海域", areaCode: "3000" }],
+    warnings: [
+      { name: "海上強風警報", code: "21", areaName: "サハリン東方海上", areaCode: "1010" },
+      { name: "海上強風警報", code: "21", areaName: "宗谷海峡", areaCode: "1040" },
+      { name: "海上強風警報", code: "21", areaName: "北海道西方海上", areaCode: "1050" },
+      { name: "海上濃霧警報", code: "23", areaName: "サハリン西方海上", areaCode: "1020" },
+      { name: "海上濃霧警報", code: "23", areaName: "北海道東方海上", areaCode: "1110" },
+      { name: "海上着氷警戒", code: "24", areaName: "網走沖", areaCode: "1030" },
+      { name: "海上濃霧警報", code: "23", areaName: "釧路沖", areaCode: "1120" },
+    ],
     area: { seaAreaCode: "3010", seaAreaName: "関東海域北部" },
   };
 }
@@ -179,6 +187,11 @@ async function main() {
   const official = page.locator('section[aria-labelledby="official-heading"]');
   await official.waitFor();
   assert.ok((await official.innerText()).includes("海上強風警報"), "海上警報の赤帯");
+  assert.ok((await official.innerText()).includes("他6件"), "警報は1件＋件数に畳む");
+  await official.getByRole("button", { name: "他6件" }).click();
+  assert.strictEqual(await official.locator("ul li").count(), 6, "展開すると全件表示");
+  await official.getByRole("button", { name: "閉じる" }).click();
+  assert.strictEqual(await official.locator("ul li").count(), 0, "再度畳める");
   assert.ok((await official.innerText()).includes("関東海域北部"), "海上予報区");
   assert.ok((await official.innerText()).includes("晴れ時々くもり"), "週間天気");
 
@@ -288,6 +301,12 @@ async function main() {
   assert.ok(reachedCsv, "TabでCSV出力ボタンに到達");
 
   // 11. 埋め込み（潮見帖連携）: ?p= エイリアスとコンパクト表示
+  await page.goto(`${BASE}/embed?p=F01853&view=week`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(600);
+  const tideFirst = await page.locator("article").evaluate(
+    (el) => el.innerHTML.indexOf("tide-heading") < el.innerHTML.indexOf("wind-heading")
+  );
+  assert.ok(tideFirst, "埋め込みでは潮位が風より上");
   await page.goto(`${BASE}/embed?p=F01853&view=month`, { waitUntil: "networkidle" });
   await page.waitForTimeout(600);
   assert.ok((await page.locator("main h2, article h2").first().innerText()).includes("波崎漁港"), "?p= で港を解決");

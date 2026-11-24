@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { nearestHokkaidoWeekArea } from "./jma-areas";
 import type { JmaMarine, JmaMarinePeriod, JmaWarning, JmaWeekly, JmaWeeklyDay } from "./types";
 
 const parser = new XMLParser({
@@ -141,42 +142,114 @@ export function jmaCodeToWmo(code: number | null): number | null {
   return 3;
 }
 
-function findWeekSeries(raw: unknown): {
-  days: JmaWeeklyDay[];
-  areaName: string;
-  office: string;
-  reportDatetime: string;
-} | null {
+export interface WeeklyTarget {
+  lat: number;
+  lon: number;
+}
+
+function weeklyArea(series: Record<string, unknown>): {
+  area?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+} {
+  const areas = series.areas;
+  if (Array.isArray(areas)) {
+    const first = areas[0] as Record<string, unknown> | undefined;
+    return { area: first?.area as Record<string, unknown> | undefined, body: first };
+  }
+  const obj = areas as Record<string, unknown> | undefined;
+  return { area: obj?.area as Record<string, unknown> | undefined, body: obj };
+}
+
+function hasAreaKey(series: unknown, key: string): boolean {
+  if (!series || typeof series !== "object") return false;
+  const body = weeklyArea(series as Record<string, unknown>).body;
+  return Boolean(body && key in body);
+}
+
+/** 短期予報（今日〜明後日）の最低/最高気温を日付ごとに集める */
+function collectShortTermTemps(seriesList: unknown): Map<string, { min: number | null; max: number | null }> {
+  const map = new Map<string, { min: number | null; max: number | null }>();
+  for (const series of asArray(seriesList)) {
+    if (!series || typeof series !== "object") continue;
+    const ts = series as Record<string, unknown>;
+    const times = (ts.timeDefines as string[]) ?? [];
+    for (const rawArea of asArray(ts.areas)) {
+      if (!rawArea || typeof rawArea !== "object") continue;
+      const temps = (rawArea as Record<string, unknown>).temps as unknown[] | undefined;
+      if (!Array.isArray(temps)) continue;
+      const seen = new Map<string, number>();
+      times.forEach((t, i) => {
+        const date = t.slice(0, 10);
+        const value = parseNumber(temps[i]);
+        const count = seen.get(date) ?? 0;
+        const current = map.get(date) ?? { min: null, max: null };
+        if (count === 0) current.min = value;
+        else if (count === 1) current.max = value;
+        map.set(date, current);
+        seen.set(date, count + 1);
+      });
+    }
+  }
+  return map;
+}
+
+function fillTemps(
+  days: JmaWeeklyDay[],
+  filled: Map<string, { min: number | null; max: number | null }>
+): JmaWeeklyDay[] {
+  return days.map((day) => {
+    const extra = filled.get(day.date);
+    if (!extra) return day;
+    if (day.tempMin != null && day.tempMax != null) return day;
+    return {
+      ...day,
+      tempMin: day.tempMin ?? extra.min,
+      tempMax: day.tempMax ?? extra.max,
+    };
+  });
+}
+
+function hokkaidoAreaCode(entry: Record<string, unknown>): string {
+  const week = entry.week as Record<string, unknown> | undefined;
+  const series = asArray(week?.timeSeries as unknown).find((s) => hasAreaKey(s, "weatherCodes"));
+  if (!series) return "";
+  return text(weeklyArea(series as Record<string, unknown>).area?.code);
+}
+
+function findWeekSeries(
+  raw: unknown,
+  target?: WeeklyTarget
+): { days: JmaWeeklyDay[]; areaName: string; office: string; reportDatetime: string } | null {
   if (!Array.isArray(raw) || raw.length === 0) return null;
 
-  const hokkaido = raw.find(
+  const weekEntries = raw.filter(
     (e) => e && typeof e === "object" && "week" in (e as Record<string, unknown>)
-  ) as Record<string, unknown> | undefined;
+  ) as Record<string, unknown>[];
 
-  if (hokkaido) {
-    const week = hokkaido.week as Record<string, unknown>;
+  if (weekEntries.length) {
+    let chosen = weekEntries[0];
+    if (target) {
+      const nearest = nearestHokkaidoWeekArea(target.lat, target.lon);
+      const match = weekEntries.find((e) => hokkaidoAreaCode(e) === nearest.code);
+      if (match) chosen = match;
+    }
+
+    const week = chosen.week as Record<string, unknown>;
     const series = asArray(week.timeSeries as unknown);
-    const hasAreaKey = (s: unknown, key: string) => {
-      if (!s || typeof s !== "object") return false;
-      const areas = (s as Record<string, unknown>).areas as Record<string, unknown> | undefined;
-      return Boolean(areas && typeof areas === "object" && key in areas);
-    };
-    const daySeries = series.find((s) => hasAreaKey(s, "weatherCodes")) as
-      | Record<string, unknown>
-      | undefined;
-    const tempSeries = series.find((s) => hasAreaKey(s, "tempsMax")) as
-      | Record<string, unknown>
-      | undefined;
+    const daySeries = series.find((s) => hasAreaKey(s, "weatherCodes")) as Record<string, unknown> | undefined;
     if (!daySeries) return null;
-    const area = (daySeries.areas as Record<string, unknown>)?.area as Record<string, unknown> | undefined;
-    const codes = daySeries.weatherCodes as unknown[];
-    const pops = daySeries.pops as unknown[];
-    const rel = daySeries.reliabilities as unknown[];
-    const tempAreas = tempSeries?.areas as Record<string, unknown> | undefined;
-    const tempsMax = (tempAreas?.tempsMax as unknown[]) ?? [];
-    const tempsMin = (tempAreas?.tempsMin as unknown[]) ?? [];
+    const dayArea = weeklyArea(daySeries);
+    const tempSeries = series.find((s) => hasAreaKey(s, "tempsMax")) as Record<string, unknown> | undefined;
+    const tempBody = tempSeries ? weeklyArea(tempSeries).body : undefined;
+
+    const codes = dayArea.body?.weatherCodes as unknown[] | undefined;
+    const pops = dayArea.body?.pops as unknown[] | undefined;
+    const rel = dayArea.body?.reliabilities as unknown[] | undefined;
+    const tempsMax = tempBody?.tempsMax as unknown[] | undefined;
+    const tempsMin = tempBody?.tempsMin as unknown[] | undefined;
     const times = (daySeries.timeDefines as string[]) ?? [];
-    const days = times.map((t, i) => ({
+
+    const base = times.map((t, i) => ({
       date: t.slice(0, 10),
       code: parseNumber(codes?.[i]),
       text: jmaWeatherText(parseNumber(codes?.[i])),
@@ -185,10 +258,14 @@ function findWeekSeries(raw: unknown): {
       tempMax: parseNumber(tempsMax?.[i]),
       reliability: text(rel?.[i]),
     }));
+
+    const srf = chosen.srf as Record<string, unknown> | undefined;
+    const days = fillTemps(base, collectShortTermTemps(srf?.timeSeries));
+
     return {
       days,
-      areaName: text(area?.name),
-      office: String(week.publishingOffice ?? hokkaido.name ?? ""),
+      areaName: text(dayArea.area?.name),
+      office: String(week.publishingOffice ?? chosen.name ?? ""),
       reportDatetime: String(week.reportDatetime ?? ""),
     };
   }
@@ -220,7 +297,8 @@ function findWeekSeries(raw: unknown): {
     const tempsMax = tempArea?.tempsMax as unknown[];
     const tempsMin = tempArea?.tempsMin as unknown[];
     const times = (daySeries.timeDefines as string[]) ?? [];
-    const days = times.map((t, i) => ({
+
+    const base = times.map((t, i) => ({
       date: t.slice(0, 10),
       code: parseNumber(codes?.[i]),
       text: jmaWeatherText(parseNumber(codes?.[i])),
@@ -229,6 +307,10 @@ function findWeekSeries(raw: unknown): {
       tempMax: parseNumber(tempsMax?.[i]),
       reliability: text(rel?.[i]),
     }));
+
+    const shortTerm = (raw[0] as Record<string, unknown> | undefined)?.timeSeries;
+    const days = fillTemps(base, collectShortTermTemps(shortTerm));
+
     return {
       days,
       areaName: text(areaInfo?.name),
@@ -239,8 +321,8 @@ function findWeekSeries(raw: unknown): {
   return null;
 }
 
-export function parseWeekly(raw: unknown): JmaWeekly | null {
-  const found = findWeekSeries(raw);
+export function parseWeekly(raw: unknown, target?: WeeklyTarget): JmaWeekly | null {
+  const found = findWeekSeries(raw, target);
   if (!found || !found.days.length) return null;
   return {
     office: found.office,

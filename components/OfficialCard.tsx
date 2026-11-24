@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import WeatherIcon from "./WeatherIcon";
 import { hourLabel, weekdayJa } from "@/lib/tide";
 import { jmaCodeToWmo } from "@/lib/jma";
@@ -16,6 +17,7 @@ function windText(dir: string, speed: number | null): string {
 }
 
 export default function OfficialCard({ jma, loading }: Props) {
+  const [showAllWarnings, setShowAllWarnings] = useState(false);
   if (loading && !jma) {
     return (
       <div className="border border-rule bg-paper-2 px-3 py-2 text-[10.5px] text-ink-3">
@@ -35,13 +37,32 @@ export default function OfficialCard({ jma, loading }: Props) {
   return (
     <section aria-labelledby="official-heading" className="border border-ink/20 bg-paper-2">
       {warnings.length > 0 && (
-        <div className="bg-signal text-paper-2 px-3 py-1.5 flex items-start gap-2 flex-wrap">
-          <span className="text-[10px] tracking-wider font-semibold shrink-0">海上警報</span>
-          {warnings.map((w) => (
-            <span key={`${w.name}-${w.areaName}`} className="text-[10.5px]">
-              {w.name}（{w.areaName}）
+        <div className="bg-signal text-paper-2 px-3 py-1.5">
+          <div className="flex items-start gap-2 flex-wrap">
+            <span className="text-[10px] tracking-wider font-semibold shrink-0">海上警報</span>
+            <span className="text-[10.5px] font-semibold">
+              {warnings[0].name}（{warnings[0].areaName}）
             </span>
-          ))}
+            {warnings.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setShowAllWarnings((v) => !v)}
+                aria-expanded={showAllWarnings}
+                className="ml-auto shrink-0 px-1.5 py-[1px] border border-paper-2/50 rounded-[1px] text-[10px] hover:bg-paper-2/15"
+              >
+                {showAllWarnings ? "閉じる" : `他${warnings.length - 1}件`}
+              </button>
+            )}
+          </div>
+          {showAllWarnings && warnings.length > 1 && (
+            <ul className="mt-1 pl-0 list-none grid sm:grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+              {warnings.slice(1).map((w) => (
+                <li key={`${w.name}-${w.areaName}`}>
+                  {w.name}（{w.areaName}）
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

@@ -72,6 +72,85 @@ describe("週間天気のパース", () => {
     expect(weekly!.days[0].text).toBe("晴れ時々くもり");
   });
 
+  it("北海道は港の緯度経度に近い区域を選び、天気コード・降水確率も読む", () => {
+    const makeEntry = (
+      office: string,
+      name: string,
+      areaCode: string,
+      areaName: string,
+      codes: string[],
+      pops: string[],
+      baseTemps: { min: string[]; max: string[] }
+    ) => ({
+      officeCode: office,
+      name,
+      srf: {
+        timeSeries: [
+          {
+            timeDefines: ["2026-11-20", "2026-11-20", "2026-11-21", "2026-11-21"],
+            areas: { area: { name: areaName, code: areaCode }, temps: ["-1", "4", "0", "9"] },
+          },
+        ],
+      },
+      week: {
+        publishingOffice: name,
+        reportDatetime: "2026-11-24T11:00:00+09:00",
+        timeSeries: [
+          {
+            timeDefines: days7,
+            areas: { area: { name: areaName, code: areaCode }, weatherCodes: codes, pops, reliabilities: ["", "", "A", "A", "A", "A", "A"] },
+          },
+          {
+            timeDefines: days7,
+            areas: { area: { name: areaName, code: areaCode }, tempsMin: baseTemps.min, tempsMax: baseTemps.max },
+          },
+        ],
+      },
+    });
+
+    const kushiro = makeEntry("014100", "釧路", "014000", "釧路・根室・十勝地方", ["101", "101", "101", "101", "101", "101", "101"], ["", "10", "10", "10", "10", "10", "10"], { min: ["", "1", "1", "1", "1", "1", "1"], max: ["", "2", "2", "2", "2", "2", "2"] });
+    const ishikawa = makeEntry("016000", "札幌", "016000", "石狩・空知・後志地方", ["402", "371", "200", "207", "204", "260", "206"], ["", "80", "40", "60", "50", "50", "50"], { min: ["", "0", "2", "3", "-1", "0", "2"], max: ["", "9", "14", "14", "5", "9", "7"] });
+
+    const weekly = parseWeekly([kushiro, ishikawa], { lat: 43.21, lon: 141.27 });
+    expect(weekly!.areaName).toBe("石狩・空知・後志地方");
+    expect(weekly!.days[0].code).toBe(402);
+    expect(weekly!.days[0].pop).toBeNull();
+    expect(weekly!.days[1].pop).toBe(80);
+    expect(weekly!.days[0].tempMin).toBe(0);
+    expect(weekly!.days[0].tempMax).toBe(9);
+    expect(weekly!.days[2].tempMin).toBe(2);
+  });
+
+  it("短期予報の気温で週間1日目の欠測を補う", () => {
+    const raw = [
+      {
+        publishingOffice: "水戸地方気象台",
+        timeSeries: [
+          { timeDefines: ["2026-11-20", "2026-11-21", "2026-11-22"], areas: [{ area: { name: "茨城県" }, weatherCodes: ["100", "100", "100"] }] },
+          { timeDefines: ["2026-11-20", "2026-11-20", "2026-11-21", "2026-11-21"], areas: [{ area: { name: "水戸" }, temps: ["3", "12", "5", "14"] }] },
+        ],
+      },
+      {
+        publishingOffice: "水戸地方気象台",
+        reportDatetime: "2026-11-20T11:00:00+09:00",
+        timeSeries: [
+          {
+            timeDefines: days7,
+            areas: [{ area: { name: "茨城県", code: "080000" }, weatherCodes: ["101", "201", "300", "101", "101", "101", "101"], pops: ["", "10", "60", "20", "20", "20", "30"], reliabilities: ["", "", "A", "B", "A", "A", "A"] }],
+          },
+          {
+            timeDefines: days7,
+            areas: [{ area: { name: "水戸" }, tempsMin: ["", "7", "9", "8", "6", "5", "4"], tempsMax: ["", "15", "17", "16", "14", "13", "12"] }],
+          },
+        ],
+      },
+    ];
+    const weekly = parseWeekly(raw);
+    expect(weekly!.days[0].date).toBe("2026-11-21");
+    expect(weekly!.days[0].tempMin).toBe(5);
+    expect(weekly!.days[0].tempMax).toBe(14);
+  });
+
   it("北海道の管内形式からも取り出す", () => {
     const raw = [
       {
